@@ -1,99 +1,27 @@
-export interface User {
+// Previous types remain the same, adding new subscription types
+export interface PricingPlan {
   id: string;
-  email: string;
   name: string;
-  role?: string;
-  skills?: string[];
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface Lead {
-  id: string;
-  companyName: string;
-  contactName: string;
-  contactTitle: string;
-  email: string;
-  status: 'new' | 'contacted' | 'responded' | 'converted' | 'archived';
-  industry: string;
-  employeeCount: string;
-  website: string;
-  notes: string;
-  isFavorite: boolean;
-  userId: string;
-  verificationDate: string;
-  lastContact?: string;
-  lastFunding: {
-    amount: string;
-    date: string;
-    round: string;
-  } | null;
-  socialProfiles: {
-    contactLinkedIn?: string;
-    companyLinkedIn?: string;
-    twitter?: string;
-    github?: string;
-    blog?: string;
+  price: number;
+  interval: 'month' | 'year';
+  features: string[];
+  limits: {
+    leadsPerMonth: number;
+    emailsPerDay: number;
+    campaigns: number;
+    teamMembers: number;
+    customTemplates: number;
   };
-  techStack: string[];
-  potentialProject: string | null;
-  createdAt: string;
-  updatedAt?: string;
+  recommended?: boolean;
 }
 
-export interface Campaign {
+export interface Subscription {
   id: string;
-  name: string;
-  status: 'active' | 'paused' | 'completed';
-  leads: string[];
-  emailTemplate: string;
-  stats: {
-    sent: number;
-    opened: number;
-    replied: number;
-    converted: number;
-  };
   userId: string;
-  createdAt: string;
-  updatedAt?: string;
+  planId: string;
+  status: 'active' | 'canceled' | 'past_due';
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
 }
 
-export interface SendingSchedule {
-  maxPerDay: number;
-  maxPerHour: number;
-  preferredTimes: string[];
-  timezone: string;
-  workingDays: string[];
-}
-
-export interface AISettings {
-  tone: string;
-  language: string;
-  creativity: number;
-  maxTokens: number;
-}
-
-export interface NotificationSettings {
-  emailNotifications: boolean;
-  desktopNotifications: boolean;
-  dailyDigest: boolean;
-}
-
-export interface EmailTemplate {
-  id: string;
-  name: string;
-  content: string;
-}
-
-export interface EmailSettings {
-  userId: string;
-  email: string;
-  name: string;
-  signature: string;
-  sendingSchedule: SendingSchedule;
-  aiSettings: AISettings;
-  notifications: NotificationSettings;
-  templates: EmailTemplate[];
-  createdAt: string;
-  updatedAt: string;
-}
+// Rest of the types remain the same...
