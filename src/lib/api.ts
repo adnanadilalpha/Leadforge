@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, Lead, Campaign, EmailSettings } from './types';
+import type { User, Lead, Campaign, EmailSettings, SubscriptionStatus, LeadGroup } from '../types';
 import { aiService } from './ai';
 import { 
   createUserWithEmailAndPassword, 
@@ -72,6 +72,10 @@ function getMockData(config: any) {
 export const authApi = {
   async login(email: string, password: string): Promise<User> {
     try {
+      if (!auth) {
+        throw new Error('Firebase auth is not initialized');
+      }
+      
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const userData = userDoc.data();
@@ -83,9 +87,16 @@ export const authApi = {
       return { ...userData, id: user.uid } as User;
     } catch (error: any) {
       console.error('Login error:', error);
+      
+      // More specific error messages
       if (error.code === 'auth/invalid-credential') {
         throw new Error('Invalid email or password');
+      } else if (error.code === 'auth/api-key-not-valid') {
+        throw new Error('Invalid Firebase configuration. Please contact support.');
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your connection.');
       }
+      
       throw new Error('Login failed. Please try again.');
     }
   },
@@ -97,10 +108,13 @@ export const authApi = {
         id: user.uid,
         email,
         name,
+        role: 'freelancer', // Changed from 'user' to match the type
+        profession: '',
+        expertise: [],
+        subscription: 'trialing' as SubscriptionStatus,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      
       await setDoc(doc(db, 'users', user.uid), userData);
       return userData;
     } catch (error: any) {
@@ -218,6 +232,104 @@ export const leadsApi = {
     }
 
     await deleteDoc(leadRef);
+  },
+
+  async getGroups(): Promise<LeadGroup[]> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const groupsQuery = query(
+      collection(db, 'leadGroups'),
+      where('userId', '==', auth.currentUser.uid)
+    );
+    
+    const snapshot = await getDocs(groupsQuery);
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id
+    })) as LeadGroup[];
+  },
+
+  async createGroup(name: string, leadIds: string[]): Promise<LeadGroup> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const groupData: Omit<LeadGroup, 'id'> = {
+      name,
+      userId: auth.currentUser.uid,
+      leadIds,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const docRef = await addDoc(collection(db, 'leadGroups'), groupData);
+    return { ...groupData, id: docRef.id };
+  },
+
+  async toggleFavorite(leadId: string): Promise<void> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const leadRef = doc(db, 'leads', leadId);
+    const leadDoc = await getDoc(leadRef);
+    
+    if (!leadDoc.exists()) {
+      throw new Error('Lead not found');
+    }
+
+    const currentData = leadDoc.data();
+    await updateDoc(leadRef, {
+      isFavorite: !currentData.isFavorite,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async getById(id: string): Promise<Lead> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const leadRef = doc(db, 'leads', id);
+    const leadDoc = await getDoc(leadRef);
+    
+    if (!leadDoc.exists()) {
+      throw new Error('Lead not found');
+    }
+
+    // Verify ownership
+    const leadData = leadDoc.data();
+    if (leadData.userId !== auth.currentUser.uid) {
+      throw new Error('Unauthorized access');
+    }
+
+    return { ...leadData, id: leadDoc.id } as Lead;
+  },
+
+  async addNote(id: string, note: string): Promise<void> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const leadRef = doc(db, 'leads', id);
+    await updateDoc(leadRef, {
+      notes: note,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async scheduleFollowUp(id: string, date: Date): Promise<void> {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const leadRef = doc(db, 'leads', id);
+    await updateDoc(leadRef, {
+      nextFollowUpDate: date.toISOString(),
+      updatedAt: new Date().toISOString()
+    });
   }
 };
 
@@ -297,4 +409,3 @@ export const emailApi = {
     return data;
   }
 };
-

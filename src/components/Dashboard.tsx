@@ -1,92 +1,116 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useStore } from '../lib/store';
-import { format } from 'date-fns';
+import { Card, CardHeader, CardTitle, CardContent, Button, useToast } from '../components/ui';
+import { LineChart, BarChart } from '../components/ui/charts';
+import type { Lead, Campaign } from '../types';
+import { leadsApi, campaignsApi } from '../lib/api';
 
-const Dashboard = () => {
-  const { leads, campaigns } = useStore();
+export function Dashboard() {
+  const { user } = useStore();
+  const [leads, setLeads] = React.useState<Lead[]>([]);
+  const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [leadsData, campaignsData] = await Promise.all([
+          leadsApi.getAll(),
+          campaignsApi.getAll()
+        ]);
+        setLeads(leadsData);
+        setCampaigns(campaignsData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const leadsByStatus = leads.reduce((acc, lead) => {
     acc[lead.status] = (acc[lead.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const recentActivity = [
-    ...leads.map(lead => ({
-      type: 'lead',
-      date: new Date(lead.lastContact),
-      title: `New lead: ${lead.companyName}`,
-    })),
-    ...campaigns.map(campaign => ({
-      type: 'campaign',
-      date: new Date(),
-      title: `Campaign: ${campaign.name}`,
-    })),
-  ].sort((a, b) => b.date.getTime() - a.date.getTime())
-   .slice(0, 5);
-
-  const chartData = Array.from({ length: 7 }, (_, i) => ({
-    date: format(new Date(Date.now() - i * 24 * 60 * 60 * 1000), 'MMM dd'),
-    leads: Math.floor(Math.random() * 10),
-    responses: Math.floor(Math.random() * 5),
-  })).reverse();
+  const leadsBySource = leads.reduce((acc, lead) => {
+    acc[lead.source] = (acc[lead.source] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {Object.entries(leadsByStatus).map(([status, count]) => (
-          <motion.div
-            key={status}
-            whileHover={{ y: -2 }}
-            className="bg-gray-800/50 rounded-lg p-6"
-          >
-            <h3 className="text-gray-400 mb-2 capitalize">{status} Leads</h3>
-            <p className="text-3xl font-bold">{count}</p>
-          </motion.div>
-        ))}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold">Total Leads</h3>
+            <p className="text-3xl font-bold">{leads.length}</p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold">Active Campaigns</h3>
+            <p className="text-3xl font-bold">
+              {campaigns.filter(c => c.status === 'active').length}
+            </p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold">Conversion Rate</h3>
+            <p className="text-3xl font-bold">
+              {((leads.filter(l => l.status === 'converted').length / leads.length) * 100).toFixed(1)}%
+            </p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold">New Leads (30d)</h3>
+            <p className="text-3xl font-bold">
+              {leads.filter(l => {
+                const date = new Date(l.createdAt);
+                return date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+              }).length}
+            </p>
+          </div>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <h3 className="text-xl font-semibold mb-4">Lead Generation</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="leads" stroke="#60A5FA" />
-                <Line type="monotone" dataKey="responses" stroke="#34D399" />
-              </LineChart>
-            </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Leads by Status</h3>
+            <BarChart
+              data={Object.entries(leadsByStatus).map(([status, count]) => ({
+                name: status,
+                value: count
+              }))}
+            />
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
-          <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div className={`w-2 h-2 rounded-full ${
-                  activity.type === 'lead' ? 'bg-blue-400' : 'bg-purple-400'
-                }`} />
-                <div>
-                  <p className="text-sm text-gray-300">{activity.title}</p>
-                  <p className="text-xs text-gray-500">
-                    {format(activity.date, 'MMM dd, yyyy')}
-                  </p>
-                </div>
-              </div>
-            ))}
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Leads by Source</h3>
+            <BarChart
+              data={Object.entries(leadsBySource).map(([source, count]) => ({
+                name: source,
+                value: count
+              }))}
+            />
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
-};
+}
 
+// Add default export
 export default Dashboard;

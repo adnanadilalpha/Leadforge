@@ -1,13 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import Dashboard from './components/Dashboard';
-import LeadGenerator from './components/LeadGenerator';
-import EmailAutomation from './components/EmailAutomation';
-import LandingPage from './components/LandingPage';
+import Dashboard from './components/Dashboard';  // Import as default
+import { LeadGeneratorForm } from './components/LeadGeneration/LeadGeneratorForm';
+import { EmailCampaign } from './components/EmailCampaign';
+import LandingPage from './components/LandingPage';  // Changed to default import
+import { FreelancerSettings } from './components/FreelancerSettings';
 import { useStore } from './lib/store';
-import { Settings } from './components/Settings';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastProvider } from './components/ui/toast';
+import { Toaster } from './components/ui';
+import { LeadsPage } from './components/Leads/LeadsPage';
+import { LeadDetailPage } from './components/Leads/LeadDetailPage';  // Changed to named import
 
 function App() {
   const { isAuthenticated, user } = useStore();
@@ -18,17 +20,21 @@ function App() {
 
   return (
     <>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/generate" element={<LeadGenerator />} />
-            <Route path="/email" element={<EmailAutomation />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </Layout>
-      </Router>
-      <ToastContainer position="bottom-right" />
+      <ToastProvider>
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/generate" element={<LeadGeneratorForm />} />
+              <Route path="/leads" element={<LeadsPage />} />
+              <Route path="/leads/:id" element={<LeadDetailPage />} />
+              <Route path="/email" element={<EmailCampaign />} />
+              <Route path="/settings" element={<FreelancerSettings />} />
+            </Routes>
+          </Layout>
+        </Router>
+        <Toaster />
+      </ToastProvider>
     </>
   );
 }

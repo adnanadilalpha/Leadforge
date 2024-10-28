@@ -1,60 +1,48 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { Lead, User } from './types';
+import type { Lead, User } from '../types';  // Fix import path
 import { auth } from './firebase';
 
-const genAI = new GoogleGenerativeAI('AIzaSyD6xGk0uEAd881hKz-SQHxS4WMlGsESuEE');
+// Get API key from environment variables
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+
+if (!API_KEY) {
+  throw new Error('Google API key is not configured');
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 export const aiService = {
   async generateLeads(prompt: string): Promise<Lead[]> {
     try {
       const result = await model.generateContent(`
-        You are an expert lead researcher. Generate 3-5 verified leads matching: ${prompt}
+        You are an expert lead researcher. Generate 3-5 REAL leads matching: ${prompt}
         
-        STRICT VERIFICATION REQUIREMENTS:
-        1. LinkedIn Profile Verification:
-           - Contact's LinkedIn profile MUST show current employment at the specified company
-           - Title on LinkedIn MUST match their current role
-           - Profile must be active within last 30 days
-           - Do NOT include if unable to verify current employment
-
-        2. Company Verification:
-           - Company LinkedIn page must be official and active
-           - Company size must match specified filter
-           - Recent activity (posts, updates) within last 30 days
-           - Website must be active and match company details
-
-        3. Project Verification:
-           - Only include if company shows clear signs of needing specified services
-           - Verify through recent job posts, company updates, or news
-           - Must have active technical projects or initiatives
-
-        Return ONLY verified leads in this exact format:
-        {
-          "leads": [
-            {
-              "companyName": "string",
-              "contactName": "string",
-              "contactTitle": "string",
-              "email": "string",
-              "industry": "string",
-              "employeeCount": "string",
-              "website": "string",
-              "notes": "string",
-              "socialProfiles": {
-                "contactLinkedIn": "verified_profile_url",
-                "companyLinkedIn": "verified_company_url"
-              },
-              "techStack": ["string"],
-              "lastFunding": "string",
-              "potentialProject": "string",
-              "verificationDetails": {
-                "lastVerified": "date",
-                "currentEmploymentConfirmed": true
-              }
-            }
-          ]
-        }
+        STRICT REQUIREMENTS:
+        1. Use ONLY real companies that exist - verify on LinkedIn
+        2. Find real decision-makers from these companies
+        3. Use real company websites and LinkedIn profiles
+        4. Generate business email formats based on company's email pattern
+        5. Include accurate company sizes and industries from LinkedIn
+        6. Research actual projects or needs from company news/posts
+        7. Set realistic budgets based on company size and industry standards
+        8. Add specific technologies or tools they use
+        9. Include recent company news or developments
+        10. Add relevant social proof (awards, recognition, etc.)
+        
+        For each lead, provide:
+        - Company: Real company name, website, size, industry
+        - Contact: Real decision-maker name, title, LinkedIn URL
+        - Email: Business email following company's format
+        - Phone: Business phone if publicly available
+        - Project Details: Specific needs based on company's current situation
+        - Budget: Realistic range based on company size and project scope
+        - Technologies: Current tech stack and tools
+        - Recent News: Latest company developments
+        - Social Proof: Awards, recognition, growth metrics
+        
+        Format each lead as a detailed JSON object with all these fields.
+        Ensure 100% accuracy and verifiability of all information.
       `);
 
       const response = result.response;
@@ -72,37 +60,22 @@ export const aiService = {
         throw new Error('Invalid AI response format');
       }
 
-      console.log('Current user ID:', auth.currentUser?.uid);
-      
       return parsed.leads.map((lead: any) => ({
         id: crypto.randomUUID(),
-        companyName: lead.companyName || '',
-        contactName: lead.contactName || '',
-        contactTitle: lead.contactTitle || '',
+        firstName: lead.firstName || '',
+        lastName: lead.lastName || '',
         email: lead.email || '',
-        status: 'new',
-        industry: lead.industry || '',
-        employeeCount: lead.employeeCount || '',
-        website: lead.website || '',
+        company: lead.company || '',
+        phone: lead.phone || '',
+        status: 'new' as const,
+        source: 'ai-generated',
+        projectType: lead.projectType || '',
+        budget: lead.budget || { min: 0, max: 0 },
         notes: lead.notes || '',
-        isFavorite: false,
-        userId: auth.currentUser?.uid || '', // Ensure userId is set correctly
-        verificationDate: lead.verificationDetails?.lastVerified || new Date().toISOString(),
-        lastFunding: lead.lastFunding ? {
-          amount: lead.lastFunding.amount || '',
-          date: lead.lastFunding.date || '',
-          round: lead.lastFunding.round || ''
-        } : null,
-        socialProfiles: {
-          contactLinkedIn: lead.socialProfiles?.contactLinkedIn,
-          companyLinkedIn: lead.socialProfiles?.companyLinkedIn,
-          twitter: lead.socialProfiles?.twitter,
-          github: lead.socialProfiles?.github,
-          blog: lead.socialProfiles?.blog
-        },
-        techStack: lead.techStack || [],
-        potentialProject: lead.potentialProject || null,
-        createdAt: new Date().toISOString()
+        tags: lead.tags || [],
+        requirements: lead.requirements || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }));
     } catch (error) {
       console.error('Lead Generation Error:', error);
@@ -110,26 +83,26 @@ export const aiService = {
     }
   },
 
-  async generateEmail(lead: Lead, userProfile: User) {
+  async generateEmail(lead: Lead, userProfile: User): Promise<string> {
     try {
       const result = await model.generateContent(`
-        Write a personalized cold email to ${lead.contactName} at ${lead.companyName}.
+        Write a personalized cold email to ${lead.firstName} ${lead.lastName} at ${lead.company}.
         
         About the sender:
         - Name: ${userProfile.name}
         - Role: ${userProfile.role}
-        - Skills: ${userProfile.skills?.join(', ')}
+        - Expertise: ${userProfile.expertise?.join(', ')}
         
-        Company context:
-        - Industry: ${lead.industry}
-        - Size: ${lead.employeeCount} employees
-        - Tech Stack: ${lead.techStack?.join(', ')}
-        - Potential Project: ${lead.potentialProject}
+        Lead context:
+        - Company: ${lead.company}
+        - Project Type: ${lead.projectType}
+        - Requirements: ${lead.requirements}
+        - Budget Range: $${lead.budget?.min} - $${lead.budget?.max}
         
         Write a compelling email that:
-        1. Shows understanding of their business
-        2. References their tech stack or recent company news
-        3. Proposes specific value based on their needs
+        1. Shows understanding of their business needs
+        2. References their specific project requirements
+        3. Demonstrates relevant expertise
         4. Includes a clear call to action
         
         Keep it under 200 words, professional but conversational.
@@ -164,7 +137,7 @@ export const aiService = {
         }
       `);
       
-      return JSON.parse(result.response.text());
+      return JSON.parse(await result.response.text());
     } catch (error) {
       console.error('Response Analysis Error:', error);
       throw new Error('Failed to analyze response. Please try again.');

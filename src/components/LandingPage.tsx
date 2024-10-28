@@ -153,7 +153,7 @@ const LandingPage = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setAuthModal({ isOpen: true, mode: 'signup' })}
+                onClick={() => setAuthModal({ isOpen: true, mode: 'login' })}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-lg font-semibold"
               >
                 Start Free Trial
@@ -199,7 +199,7 @@ const LandingPage = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setAuthModal({ isOpen: true, mode: 'signup' })}
+                onClick={() => setAuthModal({ isOpen: true, mode: 'login' })}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-4 rounded-lg font-semibold text-lg"
               >
                 Start Free Trial
@@ -302,7 +302,7 @@ const LandingPage = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setAuthModal({ isOpen: true, mode: 'signup' })}
+                  onClick={() => setAuthModal({ isOpen: true, mode: 'login' })}
                   className={`w-full py-3 rounded-lg font-semibold ${
                     plan.recommended
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600'
@@ -369,7 +369,7 @@ const LandingPage = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setAuthModal({ isOpen: true, mode: 'signup' })}
+            onClick={() => setAuthModal({ isOpen: true, mode: 'login' })}
             className="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-4 rounded-lg font-semibold text-lg"
           >
             Start Your Free Trial
@@ -386,10 +386,12 @@ const LandingPage = () => {
       <PricingModal
         isOpen={pricingModal}
         onClose={() => setPricingModal(false)}
-        plans={pricingPlans}
+        plans={pricingPlans.map(plan => ({
+          ...plan,
+          interval: plan.interval === 'monthly' ? 'month' : 'year'
+        }))}
       />
     </div>
   );
 };
-
 export default LandingPage;
