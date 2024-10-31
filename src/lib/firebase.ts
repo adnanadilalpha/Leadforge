@@ -11,8 +11,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-export { auth, db };
+// Initialize Firebase only if it hasn't been initialized
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (error: any) {
+  // Check if the error is about the app already being initialized
+  if (!/already exists/.test(error.message)) {
+    console.error('Firebase initialization error', (error as Error).stack);
+  }
+}
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;

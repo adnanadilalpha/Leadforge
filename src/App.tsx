@@ -11,16 +11,17 @@ import { LeadsPage } from './components/Leads/LeadsPage';
 import { LeadDetailPage } from './components/Leads/LeadDetailPage';  // Changed to named import
 import Settings from './components/Settings';
 import PricingPage from './lib/Pricing/page';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const { isAuthenticated, user } = useStore();
 
   if (!isAuthenticated || !user) {
-    return <LandingPage />;
+    return <ErrorBoundary><LandingPage /></ErrorBoundary>;
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <ToastProvider>
         <Router>
           <Layout>
@@ -37,7 +38,7 @@ function App() {
         </Router>
         <Toaster />
       </ToastProvider>
-    </>
+    </ErrorBoundary>
   );
 }
 
