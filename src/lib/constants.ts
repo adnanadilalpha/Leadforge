@@ -1,46 +1,67 @@
-export const FREELANCER_PRICING_PLANS = [
-  {
-    id: 'price_starter',
-    name: 'Solo Freelancer',
+export const PRICING_PLANS = {
+  FREE: {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    interval: 'month',
+    description: 'Perfect for trying out LeadForge',
+    features: [
+      '10 AI-Generated Leads/month',
+      'Basic Email Templates',
+      'Lead Management',
+      'Email Tracking',
+    ],
+    limits: {
+      leadsPerMonth: 10,
+      emailsPerDay: 20,
+      campaigns: 1,
+      teamMembers: 1,
+      customTemplates: 2
+    }
+  },
+  FREELANCER: {
+    id: 'price_freelancer', // Stripe price ID
+    name: 'Freelancer',
     price: 29,
     interval: 'month',
-    description: 'Perfect for freelancers just starting out',
+    description: 'For independent freelancers',
     features: [
       '100 AI-Generated Leads/month',
-      'Email Templates',
-      'Basic Analytics',
-      'Follow-up Reminders',
-      'Email Tracking',
+      'Advanced Email Templates',
+      'Lead Scoring',
+      'Analytics Dashboard',
+      'Priority Support',
+      'Follow-up Automation'
     ],
     limits: {
       leadsPerMonth: 100,
       emailsPerDay: 50,
-      automatedFollowUps: 25,
-      customTemplates: 3,
-      aiCredits: 100,
-    },
+      campaigns: 5,
+      teamMembers: 1,
+      customTemplates: 10
+    }
   },
-  {
-    id: 'price_pro',
-    name: 'Professional',
+  TEAM: {
+    id: 'price_team', // Stripe price ID
+    name: 'Team',
     price: 79,
     interval: 'month',
-    description: 'For established freelancers looking to scale',
+    description: 'For agencies and teams',
     features: [
       'Unlimited AI-Generated Leads',
-      'Advanced Lead Scoring',
       'Custom Email Templates',
       'Advanced Analytics',
-      'Priority Support',
-      'Client Portal',
+      'Team Collaboration',
+      'API Access',
+      'Dedicated Support',
+      'White-label Reports'
     ],
     limits: {
       leadsPerMonth: -1, // unlimited
       emailsPerDay: 200,
-      automatedFollowUps: 100,
-      customTemplates: 10,
-      aiCredits: 500,
-    },
-    recommended: true,
-  },
-];
+      campaigns: -1,
+      teamMembers: 5,
+      customTemplates: -1
+    }
+  }
+};

@@ -90,7 +90,7 @@ with a budget of $5,000-$20,000 per project.`}
                   {user?.settings?.leadPreferences?.industries?.length ? (
                     <div className="flex flex-wrap gap-2">
                       <span>Using preferences:</span>
-                      {user.settings.leadPreferences.industries.map((industry) => (
+                      {user.settings.leadPreferences.industries.map((industry: string) => (
                         <span
                           key={industry}
                           className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs"
@@ -161,7 +161,7 @@ with a budget of $5,000-$20,000 per project.`}
                 <div>
                   <span className="text-sm text-gray-400">Industries:</span>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {user?.settings?.leadPreferences?.industries?.map((industry) => (
+                    {user?.settings?.leadPreferences?.industries?.map((industry: string) => (
                       <span
                         key={industry}
                         className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs"
@@ -174,7 +174,7 @@ with a budget of $5,000-$20,000 per project.`}
                 <div>
                   <span className="text-sm text-gray-400">Project Types:</span>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {user?.settings?.leadPreferences?.projectTypes?.map((type) => (
+                    {user?.settings?.leadPreferences?.projectTypes?.map((type: string) => (
                       <span
                         key={type}
                         className="px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs"

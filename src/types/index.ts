@@ -1,23 +1,46 @@
+import { PRICING_PLANS } from "@/lib/constants";
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'freelancer' | 'admin';
-  profession?: string;
-  expertise?: string[];
-  portfolio?: string;
-  subscription: SubscriptionStatus;
-  createdAt: string | Date;
-  updatedAt?: string | Date;
-  emailSignature?: string;
-  settings?: FreelancerSettings;
+  role: 'freelancer' | 'agency';
+  subscription?: {
+    status: 'trial' | 'active' | 'canceled' | 'expired';
+    planId: keyof typeof PRICING_PLANS;
+  };
+  settings?: UserSettings;
+  stripeCustomerId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSettings {
+  notifications: {
+    email: boolean;
+    browser: boolean;
+    leadAlerts: boolean;
+    weeklyReport: boolean;
+  };
+  privacy: {
+    shareData: boolean;
+    allowMarketing: boolean;
+  };
+  leadPreferences?: {
+    industries?: string[];
+    projectTypes?: string[];
+    budgetRange?: {
+      min: number;
+      max: number;
+    };
+  };
 }
 
 export interface FreelancerSettings {
-  hourlyRate?: number;
-  availability?: 'available' | 'busy' | 'not_available';
+  hourlyRate: number;
+  availability: 'available' | 'busy' | 'not_available';
   timezone?: string;
-  preferredCommunication?: 'email' | 'phone' | 'messaging';
+  preferredCommunication: 'email' | 'phone' | 'messaging';
   autoResponder?: boolean;
   leadPreferences?: {
     industries?: string[];
@@ -29,42 +52,75 @@ export interface FreelancerSettings {
   };
 }
 
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'converted' | 'lost';
+export type LeadSource = 'ai-generated' | 'manual' | 'imported';
+
 export interface Lead {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
-  company?: string;
+  company: string;
+  title?: string;
+  website?: string;
+  companySize?: string;
+  industry?: string;
   status: LeadStatus;
-  source: string;
+  source: LeadSource;
   projectType?: string;
   budget?: {
     min: number;
     max: number;
   };
-  timeline?: string;
   requirements?: string;
   notes?: string;
   tags: string[];
   isFavorite?: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  lastContactedAt?: string | Date;
-  nextFollowUpDate?: string | Date;
+  linkedIn?: string;
+  nextFollowUpDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastContactedAt?: string;
+  userId: string;
+  evidence?: {
+    projectSource?: string;
+    companyNews?: string;
+    jobPostings?: string;
+    verificationDate?: string;
+  };
+}
+
+export interface LeadGroup {
+  id: string;
+  name: string;
+  userId: string;
+  leadIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Campaign {
   id: string;
   name: string;
-  description?: string;
   status: 'draft' | 'active' | 'paused' | 'completed';
-  type: 'email' | 'social' | 'ads';
-  startDate?: string | Date;
-  endDate?: string | Date;
+  type: 'email' | 'linkedin';
   userId: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  leadIds: string[];
+  templateId?: string;
+  schedule?: {
+    startDate: string;
+    endDate?: string;
+    frequency?: 'daily' | 'weekly' | 'monthly';
+  };
+  stats?: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    replied: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EmailSettings {
@@ -82,40 +138,27 @@ export interface PricingPlan {
   name: string;
   price: number;
   interval: 'month' | 'year';
+  description: string;
   features: string[];
   limits: {
     leadsPerMonth: number;
     emailsPerDay: number;
-    automatedFollowUps: number;
+    campaigns: number;
+    teamMembers: number;
     customTemplates: number;
-    aiCredits: number;
   };
-  recommended?: boolean;
-  description?: string;
 }
 
 export interface Subscription {
   id: string;
   userId: string;
   planId: string;
-  status: SubscriptionStatus;
+  status: 'active' | 'canceled' | 'expired';
+  currentPeriodStart: string;
   currentPeriodEnd: string;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
   cancelAtPeriodEnd: boolean;
+  stripeSubscriptionId: string;
+  stripeCustomerId: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'converted' | 'lost';
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
-
-// Add LeadGroup interface
-export interface LeadGroup {
-  id: string;
-  name: string;
-  userId: string;
-  leadIds: string[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
 }

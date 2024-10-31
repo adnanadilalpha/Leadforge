@@ -28,6 +28,13 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
+    // Lead groups collection
+    match /leadGroups/{groupId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
     // Campaigns collection
     match /campaigns/{campaignId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;

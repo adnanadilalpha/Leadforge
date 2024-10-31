@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { PricingPlan, SubscriptionStatus } from '../types';
+import { PRICING_PLANS } from './constants';
 
 const stripe = new Stripe(import.meta.env.VITE_STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
@@ -10,6 +10,17 @@ export const stripeClient = {
     return stripe.customers.create({
       email,
       name,
+      metadata: {
+        source: 'leadforge',
+      },
+    });
+  },
+
+  async createPaymentIntent(amount: number, currency: string = 'usd') {
+    return stripe.paymentIntents.create({
+      amount,
+      currency,
+      payment_method_types: ['card', 'us_bank_account'],
       metadata: {
         source: 'leadforge',
       },
@@ -33,6 +44,9 @@ export const stripeClient = {
       mode: 'subscription',
       success_url: `${returnUrl}?success=true`,
       cancel_url: `${returnUrl}?canceled=true`,
+      payment_method_types: ['card', 'us_bank_account'],
+      allow_promotion_codes: true,
+      billing_address_collection: 'required',
     });
   },
 
@@ -43,4 +57,11 @@ export const stripeClient = {
   async getSubscription(subscriptionId: string) {
     return stripe.subscriptions.retrieve(subscriptionId);
   },
+
+  async createPortalSession(customerId: string, returnUrl: string) {
+    return stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+  }
 };

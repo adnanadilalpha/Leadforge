@@ -5,71 +5,8 @@ import { TypeAnimation } from 'react-type-animation';
 import { useInView } from 'react-intersection-observer';
 import AuthModal from './AuthModal';
 import PricingModal from './PricingModal';
-
-const pricingPlans = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    interval: 'month',
-    features: [
-      'AI-powered lead generation (10/month)',
-      'Basic email templates',
-      'Simple analytics',
-      'Single user'
-    ],
-    limits: {
-      leadsPerMonth: 10,
-      emailsPerDay: 20,
-      campaigns: 1,
-      teamMembers: 1,
-      customTemplates: 2
-    }
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 29,
-    interval: 'month',
-    features: [
-      'Unlimited lead generation',
-      'Advanced email automation',
-      'Custom templates',
-      'Full analytics suite',
-      'Priority support',
-      'Up to 3 team members'
-    ],
-    limits: {
-      leadsPerMonth: 100,
-      emailsPerDay: 100,
-      campaigns: 10,
-      teamMembers: 3,
-      customTemplates: 10
-    },
-    recommended: true
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 99,
-    interval: 'month',
-    features: [
-      'Everything in Pro',
-      'Unlimited everything',
-      'Custom AI training',
-      'Dedicated account manager',
-      'API access',
-      'Custom integrations'
-    ],
-    limits: {
-      leadsPerMonth: -1, // unlimited
-      emailsPerDay: -1,
-      campaigns: -1,
-      teamMembers: -1,
-      customTemplates: -1
-    }
-  }
-];
+import { PRICING_PLANS } from '../lib/constants';
+import type { PricingPlan } from '../types';
 
 const LandingPage = () => {
   const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login' as const });
@@ -125,6 +62,12 @@ const LandingPage = () => {
       quote: 'We scaled our agency from 5 to 50 clients using LeadForge. The ROI is incredible.'
     }
   ];
+
+  // Convert PRICING_PLANS object to array
+  const pricingPlansArray = Object.entries(PRICING_PLANS).map(([key, plan]) => ({
+    ...plan,
+    key: key as keyof typeof PRICING_PLANS
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white">
@@ -271,17 +214,17 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {pricingPlans.map((plan) => (
+            {pricingPlansArray.map((plan) => (
               <motion.div
                 key={plan.id}
                 whileHover={{ y: -10 }}
                 className={`rounded-xl p-6 ${
-                  plan.recommended
+                  plan.key === 'FREELANCER'
                     ? 'bg-gradient-to-b from-blue-500/10 to-purple-600/10 border-2 border-blue-500'
                     : 'bg-gray-800/50 border border-gray-700'
                 }`}
               >
-                {plan.recommended && (
+                {plan.key === 'FREELANCER' && (
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-semibold px-3 py-1 rounded-full inline-block mb-4">
                     Most Popular
                   </div>
@@ -292,7 +235,7 @@ const LandingPage = () => {
                   <span className="text-gray-400">/month</span>
                 </div>
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
+                  {plan.features.map((feature: string) => (
                     <li key={feature} className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-400" />
                       <span>{feature}</span>
@@ -304,7 +247,7 @@ const LandingPage = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setAuthModal({ isOpen: true, mode: 'login' })}
                   className={`w-full py-3 rounded-lg font-semibold ${
-                    plan.recommended
+                    plan.key === 'FREELANCER'
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600'
                       : 'bg-gray-700 hover:bg-gray-600'
                   }`}
@@ -386,10 +329,7 @@ const LandingPage = () => {
       <PricingModal
         isOpen={pricingModal}
         onClose={() => setPricingModal(false)}
-        plans={pricingPlans.map(plan => ({
-          ...plan,
-          interval: plan.interval === 'monthly' ? 'month' : 'year'
-        }))}
+        selectedPlan="FREELANCER"
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, PricingPlan, Subscription, FreelancerSettings } from '../types';
+import type { User, PricingPlan, Subscription, FreelancerSettings, UserSettings } from '../types';
 import { authApi } from './api';
 import { stripeClient } from './stripe';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -18,7 +18,7 @@ interface AppState {
   subscribe: (planId: string) => Promise<void>;
   cancelSubscription: () => Promise<void>;
   setError: (error: string | null) => void;
-  updateSettings: (settings: FreelancerSettings) => Promise<void>;
+  updateSettings: (settings: UserSettings) => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
@@ -75,12 +75,20 @@ export const useStore = create<AppState>()(
           const { user } = get();
           if (!user) throw new Error('User not authenticated');
 
-          // Create or retrieve Stripe customer
-          const customer = await stripeClient.createCustomer(user.email, user.name);
-          
+          // Create or get Stripe customer
+          let customerId = user.stripeCustomerId;
+          if (!customerId) {
+            const customer = await stripeClient.createCustomer(user.email, user.name);
+            customerId = customer.id;
+            
+            // Update user with Stripe customer ID
+            const userRef = doc(db, 'users', user.id);
+            await updateDoc(userRef, { stripeCustomerId: customerId });
+          }
+
           // Create checkout session
           const session = await stripeClient.createCheckoutSession(
-            customer.id,
+            customerId,
             planId,
             `${window.location.origin}/settings`
           );
@@ -117,7 +125,7 @@ export const useStore = create<AppState>()(
 
       setError: (error: string | null) => set({ error }),
 
-      updateSettings: async (settings: FreelancerSettings) => {
+      updateSettings: async (settings: UserSettings) => {
         try {
           set({ isLoading: true, error: null });
           const { user } = get();

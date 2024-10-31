@@ -1,14 +1,25 @@
 import axios from 'axios';
-import type { User, Lead, Campaign, EmailSettings, SubscriptionStatus, LeadGroup } from '../types';
+import type { User, Lead, Campaign, EmailSettings, Subscription, LeadGroup } from '../types';
 import { aiService } from './ai';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  getAuth
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, addDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  deleteDoc
+} from 'firebase/firestore';
+import { db, auth } from './firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -72,101 +83,100 @@ function getMockData(config: any) {
 export const authApi = {
   async login(email: string, password: string): Promise<User> {
     try {
-      if (!auth) {
-        throw new Error('Firebase auth is not initialized');
-      }
-      
+      const auth = getAuth();
       const { user } = await signInWithEmailAndPassword(auth, email, password);
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.data();
       
-      if (!userData) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!userDoc.exists()) {
         throw new Error('User data not found');
       }
-      
-      return { ...userData, id: user.uid } as User;
+
+      return { ...userDoc.data(), id: user.uid } as User;
     } catch (error: any) {
       console.error('Login error:', error);
-      
-      // More specific error messages
-      if (error.code === 'auth/invalid-credential') {
-        throw new Error('Invalid email or password');
-      } else if (error.code === 'auth/api-key-not-valid') {
-        throw new Error('Invalid Firebase configuration. Please contact support.');
-      } else if (error.code === 'auth/network-request-failed') {
-        throw new Error('Network error. Please check your connection.');
-      }
-      
-      throw new Error('Login failed. Please try again.');
+      throw new Error(error.message || 'Login failed');
     }
   },
 
   async signup(email: string, password: string, name: string): Promise<User> {
     try {
+      const auth = getAuth();
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      
       const userData: User = {
         id: user.uid,
         email,
         name,
-        role: 'freelancer', // Changed from 'user' to match the type
-        profession: '',
-        expertise: [],
-        subscription: 'trialing' as SubscriptionStatus,
+        role: 'freelancer',
+        subscription: {
+          status: 'trial',
+          planId: 'FREE'
+        },
+        settings: {
+          notifications: {
+            email: true,
+            browser: false,
+            leadAlerts: true,
+            weeklyReport: true
+          },
+          privacy: {
+            shareData: false,
+            allowMarketing: true
+          }
+        },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+
       await setDoc(doc(db, 'users', user.uid), userData);
       return userData;
     } catch (error: any) {
       console.error('Signup error:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error('Email already in use');
-      }
-      throw new Error('Signup failed. Please try again.');
+      throw new Error(error.message || 'Signup failed');
     }
   },
 
   async logout(): Promise<void> {
-    await signOut(auth);
-  },
-
-  async getSession(): Promise<User | null> {
-    return new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          resolve(userDoc.data() as User);
-        } else {
-          resolve(null);
-        }
-        unsubscribe();
-      });
-    });
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      throw new Error(error.message || 'Logout failed');
+    }
   }
 };
 
 // Leads API
 export const leadsApi = {
   async generate(prompt: string): Promise<Lead[]> {
-    const newLeads = await aiService.generateLeads(prompt);
-    const leadsCollection = collection(db, 'leads');
-    
-    const storedLeads = await Promise.all(
-      newLeads.map(async (lead) => {
-        const leadData = {
-          ...lead,
-          userId: auth.currentUser?.uid,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: 'new' as const // Type assertion to narrow the type
-        };
-        
-        const docRef = await addDoc(leadsCollection, leadData);
-        return { ...leadData, id: docRef.id };
-      })
-    );
-    
-    return storedLeads as Lead[];
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const leads = await aiService.generateLeads(prompt);
+      const leadsCollection = collection(db, 'leads');
+      
+      const storedLeads = await Promise.all(
+        leads.map(async (lead) => {
+          const leadData = {
+            ...lead,
+            userId: auth.currentUser!.uid,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          const docRef = await addDoc(leadsCollection, leadData);
+          return { ...leadData, id: docRef.id };
+        })
+      );
+      
+      return storedLeads;
+    } catch (error) {
+      console.error('Lead generation error:', error);
+      throw error;
+    }
   },
 
   async update(id: string, data: Partial<Lead>): Promise<Lead> {
@@ -175,25 +185,12 @@ export const leadsApi = {
     }
 
     const leadRef = doc(db, 'leads', id);
-    const leadDoc = await getDoc(leadRef);
-    
-    if (!leadDoc.exists()) {
-      console.error(`Lead with ID ${id} not found in Firestore`);
-      throw new Error('Lead not found');
-    }
-
-    const updateData = {
+    await updateDoc(leadRef, {
       ...data,
       updatedAt: new Date().toISOString()
-    };
+    });
 
-    await updateDoc(leadRef, updateData);
-    
-    const updatedDoc = await getDoc(leadRef);
-    return { 
-      ...updatedDoc.data(),
-      id: updatedDoc.id 
-    } as Lead;
+    return this.getById(id);
   },
 
   async getAll(): Promise<Lead[]> {
@@ -201,16 +198,16 @@ export const leadsApi = {
       throw new Error('User not authenticated');
     }
 
-    const leadsQuery = query(
-      collection(db, 'leads'), 
+    const q = query(
+      collection(db, 'leads'),
       where('userId', '==', auth.currentUser.uid)
     );
     
-    const snapshot = await getDocs(leadsQuery);
-    return snapshot.docs.map(doc => ({ 
-      ...doc.data(), 
-      id: doc.id 
-    } as Lead));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id
+    })) as Lead[];
   },
 
   async delete(id: string): Promise<void> {
@@ -218,20 +215,7 @@ export const leadsApi = {
       throw new Error('User not authenticated');
     }
 
-    const leadRef = doc(db, 'leads', id);
-    const leadDoc = await getDoc(leadRef);
-    
-    if (!leadDoc.exists()) {
-      throw new Error('Lead not found');
-    }
-
-    // Verify ownership
-    const leadData = leadDoc.data();
-    if (leadData.userId !== auth.currentUser.uid) {
-      throw new Error('Unauthorized access');
-    }
-
-    await deleteDoc(leadRef);
+    await deleteDoc(doc(db, 'leads', id));
   },
 
   async getGroups(): Promise<LeadGroup[]> {
@@ -239,12 +223,12 @@ export const leadsApi = {
       throw new Error('User not authenticated');
     }
 
-    const groupsQuery = query(
+    const q = query(
       collection(db, 'leadGroups'),
       where('userId', '==', auth.currentUser.uid)
     );
     
-    const snapshot = await getDocs(groupsQuery);
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id
@@ -256,10 +240,10 @@ export const leadsApi = {
       throw new Error('User not authenticated');
     }
 
-    const groupData: Omit<LeadGroup, 'id'> = {
+    const groupData = {
       name,
-      userId: auth.currentUser.uid,
       leadIds,
+      userId: auth.currentUser.uid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -299,13 +283,7 @@ export const leadsApi = {
       throw new Error('Lead not found');
     }
 
-    // Verify ownership
-    const leadData = leadDoc.data();
-    if (leadData.userId !== auth.currentUser.uid) {
-      throw new Error('Unauthorized access');
-    }
-
-    return { ...leadData, id: leadDoc.id } as Lead;
+    return { ...leadDoc.data(), id: leadDoc.id } as Lead;
   },
 
   async addNote(id: string, note: string): Promise<void> {

@@ -45,6 +45,7 @@ export function EmailCampaign() {
         status: 'draft',
         type: 'email',
         userId: user!.id,
+        leadIds: [], // Add empty leadIds array
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
